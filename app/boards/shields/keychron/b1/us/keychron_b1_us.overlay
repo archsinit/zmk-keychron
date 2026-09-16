@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+/* Trigger CI for B1 Pro 071A layer proof build. */
 #include <dt-bindings/zmk/matrix_transform.h>
 #include <dt-bindings/zmk/keys.h>
 
