@@ -1,0 +1,28 @@
+name: Check Keychron 24G library versions
+
+on:
+  push:
+    branches:
+      - b1pro-071a-radio-version-check
+    paths:
+      - ".github/workflows/radio-version-check.yml"
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current Keychron fork
+        uses: actions/checkout@v4
+
+      - name: Inspect current official library
+        run: |
+          echo "CURRENT_BLOB=$(git hash-object app/src/24G/lib_nrf_esb_24G.a)"
+          strings app/src/24G/lib_nrf_esb_24G.a | grep -E 'v[0-9]+\.[0-9]+\.[0-9]+-ZK|ZMK_KB_B6|B6N_v1\.0' || true
+
+      - name: Inspect previous official Keychron library
+        run: |
+          git fetch --no-tags --depth=1 https://github.com/Keychron/zmk.git f44436b31033c81df6ab07e37178e6678d5aeace
+          git show FETCH_HEAD:app/src/24G/lib_nrf_esb_24G.a > /tmp/previous.a
+          echo "PREVIOUS_BLOB=$(git hash-object /tmp/previous.a)"
+          strings /tmp/previous.a | grep -E 'v[0-9]+\.[0-9]+\.[0-9]+-ZK|ZMK_KB_B6|B6N_v1\.0' || true
