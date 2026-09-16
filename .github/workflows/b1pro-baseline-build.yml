@@ -1,0 +1,49 @@
+name: B1 Pro 071A baseline build
+
+on:
+  push:
+    branches:
+      - b1pro-071a-baseline-test
+    paths:
+      - "app/**"
+      - "0001-esb-nrf-fix.patch"
+      - ".github/workflows/b1pro-baseline-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/zmkfirmware/zmk-build-arm:3.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize workspace
+        run: west init -l app
+
+      - name: Update modules
+        run: west update
+
+      - name: Apply Keychron official Zephyr patch
+        run: |
+          git -C zephyr am ../0001-esb-nrf-fix.patch
+          grep -q "usb_sof_count" zephyr/drivers/usb/device/usb_dc_nrfx.c
+          grep -q "CONFIG_DYNAMIC_DIRECT_INTERRUPTS" zephyr/subsys/bluetooth/controller/ll_sw/nordic/lll/lll.c
+          grep -q "bt_bas_set_battery_level_fix" zephyr/subsys/bluetooth/services/bas.c
+
+      - name: Export Zephyr CMake package
+        run: west zephyr-export
+
+      - name: Build Keychron B1 Pro US baseline
+        run: west build -s app -p -b keychron -- -DSHIELD=keychron_b1_us
+
+      - name: Upload baseline diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: b1pro-071a-baseline-firmware
+          path: |
+            build/zephyr/zmk.uf2
+            build/zephyr/zephyr.dts
+            build/zephyr/.config
+            build/zephyr/zephyr.map
