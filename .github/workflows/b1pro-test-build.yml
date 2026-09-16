@@ -1,0 +1,37 @@
+name: B1 Pro 071A test build
+
+on:
+  push:
+    branches:
+      - b1pro-071a-layer-test
+    paths:
+      - "app/**"
+      - ".github/workflows/b1pro-test-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/zmkfirmware/zmk-build-arm:3.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize workspace
+        run: west init -l app
+
+      - name: Update modules
+        run: west update
+
+      - name: Export Zephyr CMake package
+        run: west zephyr-export
+
+      - name: Build Keychron B1 Pro US target
+        run: west build -s app -p -b keychron -- -DSHIELD=keychron_b1_us
+
+      - name: Upload UF2
+        uses: actions/upload-artifact@v4
+        with:
+          name: b1pro-071a-test-firmware
+          path: build/zephyr/zmk.uf2
