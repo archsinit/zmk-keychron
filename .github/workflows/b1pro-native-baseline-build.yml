@@ -33,7 +33,7 @@ jobs:
 
       - name: Apply Keychron official Zephyr patch
         run: |
-          git -C zephyr am ../0001-esb-nrf-fix.patch
+          git -C zephyr apply ../0001-esb-nrf-fix.patch
           grep -q "usb_sof_count" zephyr/drivers/usb/device/usb_dc_nrfx.c
           grep -q "CONFIG_DYNAMIC_DIRECT_INTERRUPTS" zephyr/subsys/bluetooth/controller/ll_sw/nordic/lll/lll.c
           grep -q "bt_bas_set_battery_level_fix" zephyr/subsys/bluetooth/services/bas.c
