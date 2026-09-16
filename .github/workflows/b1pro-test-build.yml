@@ -27,6 +27,25 @@ jobs:
       - name: Export Zephyr CMake package
         run: west zephyr-export
 
+      - name: Patch Keychron BAS helper
+        run: |
+          BAS_FILE="zephyr/subsys/bluetooth/services/bas.c"
+          if grep -q "bt_bas_set_battery_level_fix" "$BAS_FILE"; then
+            echo "BAS helper already present"
+            exit 0
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("zephyr/subsys/bluetooth/services/bas.c")
+          s = p.read_text()
+          needle = '''int bt_bas_set_battery_level(uint8_t level)\n{\n\tint rc;\n\n\tif (level > 100U) {\n\t\treturn -EINVAL;\n\t}\n\n\tbattery_level = level;\n\n\trc = bt_gatt_notify(NULL, &bas.attrs[1], &level, sizeof(level));\n\n\treturn rc == -ENOTCONN ? 0 : rc;\n}\n'''
+          helper = '''\nint bt_bas_set_battery_level_fix(struct bt_conn *conn, uint8_t level)\n{\n\tint rc;\n\n\tbattery_level = level;\n\tif (level > 100U || conn == NULL) {\n\t\tif (level > 100U) {\n\t\t\tbattery_level = 100;\n\t\t}\n\t\treturn -EINVAL;\n\t}\n\n\trc = bt_gatt_notify(conn, &bas.attrs[1], &level, sizeof(level));\n\n\treturn rc == -ENOTCONN ? 0 : rc;\n}\n'''
+          if needle not in s:
+              raise SystemExit("Expected Zephyr BAS function not found; refusing to patch")
+          p.write_text(s.replace(needle, needle + helper, 1))
+          PY
+          grep -q "bt_bas_set_battery_level_fix" "$BAS_FILE"
+
       - name: Build Keychron B1 Pro US target
         run: west build -s app -p -b keychron -- -DSHIELD=keychron_b1_us
 
