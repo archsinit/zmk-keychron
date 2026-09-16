@@ -27,6 +27,7 @@ jobs:
 
       - name: Restore previous official Keychron 24G library
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch --no-tags --depth=1 https://github.com/Keychron/zmk.git f44436b31033c81df6ab07e37178e6678d5aeace
           git show FETCH_HEAD:app/src/24G/lib_nrf_esb_24G.a > /tmp/lib_nrf_esb_24G.a
           test "$(git hash-object /tmp/lib_nrf_esb_24G.a)" = "c8769e7eae239ae7bef00ec2404cd18c3ea64a2e"
