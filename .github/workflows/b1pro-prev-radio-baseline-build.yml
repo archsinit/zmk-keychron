@@ -1,0 +1,67 @@
+name: B1 Pro 071A previous-radio baseline build
+
+on:
+  push:
+    branches:
+      - b1pro-071a-prev-radio-baseline
+    paths:
+      - ".github/workflows/b1pro-prev-radio-baseline-build.yml"
+      - "app/**"
+      - "0001-esb-nrf-fix.patch"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/zmkfirmware/zmk-build-arm:3.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify native 071A target
+        run: |
+          grep -q 'CONFIG_USB_DEVICE_PID=0x071a' app/boards/shields/keychron/b1n/us/keychron_b1_usn.conf
+          grep -q 'CONFIG_BT_DIS_FW_REV_STR="v1.0.2"' app/boards/shields/keychron/b1n/us/keychron_b1_usn.conf
+          grep -q 'CONFIG_BT_DIS_HW_REV_STR="v1.0.1"' app/boards/shields/keychron/b1n/us/keychron_b1_usn.conf
+
+      - name: Restore previous official Keychron 24G library
+        run: |
+          git fetch --no-tags --depth=1 https://github.com/Keychron/zmk.git f44436b31033c81df6ab07e37178e6678d5aeace
+          git show FETCH_HEAD:app/src/24G/lib_nrf_esb_24G.a > /tmp/lib_nrf_esb_24G.a
+          test "$(git hash-object /tmp/lib_nrf_esb_24G.a)" = "c8769e7eae239ae7bef00ec2404cd18c3ea64a2e"
+          cp /tmp/lib_nrf_esb_24G.a app/src/24G/lib_nrf_esb_24G.a
+
+      - name: Initialize workspace
+        run: west init -l app
+
+      - name: Update modules
+        run: west update
+
+      - name: Apply Keychron official Zephyr patch
+        run: |
+          git -C zephyr apply ../0001-esb-nrf-fix.patch
+          grep -q "usb_sof_count" zephyr/drivers/usb/device/usb_dc_nrfx.c
+          grep -q "CONFIG_DYNAMIC_DIRECT_INTERRUPTS" zephyr/subsys/bluetooth/controller/ll_sw/nordic/lll/lll.c
+          grep -q "bt_bas_set_battery_level_fix" zephyr/subsys/bluetooth/services/bas.c
+
+      - name: Export Zephyr CMake package
+        run: west zephyr-export
+
+      - name: Build native Keychron B1 Pro 071A target
+        run: west build -s app -p -b keychron -- -DSHIELD=keychron_b1_usn
+
+      - name: Inspect linked firmware markers
+        run: |
+          strings build/zephyr/zmk.uf2 | grep -E 'v1\.0\.[0-9]+-ZK|ZMK_KB_B6|B6N_v1\.0' || true
+
+      - name: Upload baseline diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: b1pro-071a-prev-radio-baseline-firmware
+          include-hidden-files: true
+          path: |
+            build/zephyr/zmk.uf2
+            build/zephyr/zephyr.dts
+            build/zephyr/.config
+            build/zephyr/zephyr.map
